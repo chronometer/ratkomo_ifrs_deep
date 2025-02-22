@@ -1,0 +1,148 @@
+{
+    "description": "IFRS Document Analysis Flow",
+    "name": "IFRS Analysis",
+    "id": "ifrs_analysis_flow",
+    "data": {
+        "nodes": [
+            {
+                "id": "ifrs_analysis",
+                "type": "IFRSAnalysis",
+                "position": {
+                    "x": 100,
+                    "y": 100
+                },
+                "data": {
+                    "node": {
+                        "base_classes": ["CustomComponent"],
+                        "description": "Analyzes IFRS documents for compliance",
+                        "display_name": "IFRS Analysis",
+                        "documentation": "Component for analyzing IFRS documents",
+                        "template": {
+                            "document": {
+                                "type": "file",
+                                "required": true,
+                                "description": "IFRS document to analyze"
+                            },
+                            "standards": {
+                                "type": "list",
+                                "required": true,
+                                "description": "IFRS standards to check"
+                            },
+                            "fiscal_period_start": {
+                                "type": "str",
+                                "required": true,
+                                "description": "Start of fiscal period (YYYY-MM-DD)"
+                            },
+                            "fiscal_period_end": {
+                                "type": "str",
+                                "required": true,
+                                "description": "End of fiscal period (YYYY-MM-DD)"
+                            },
+                            "company_name": {
+                                "type": "str",
+                                "required": true,
+                                "description": "Company name"
+                            },
+                            "company_industry": {
+                                "type": "str",
+                                "required": true,
+                                "description": "Company industry"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "id": "ifrs_tools_analysis",
+                "type": "IFRSTools",
+                "position": {
+                    "x": 400,
+                    "y": 100
+                },
+                "data": {
+                    "node": {
+                        "base_classes": ["CustomComponent"],
+                        "description": "IFRS analysis tools",
+                        "display_name": "IFRS Tools",
+                        "documentation": "Tools for IFRS document analysis",
+                        "template": {
+                            "tool_type": {
+                                "type": "str",
+                                "required": true,
+                                "options": ["analysis", "synthesis"]
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "id": "ifrs_tools_synthesis",
+                "type": "IFRSTools",
+                "position": {
+                    "x": 400,
+                    "y": 300
+                },
+                "data": {
+                    "node": {
+                        "base_classes": ["CustomComponent"],
+                        "description": "IFRS synthesis tools",
+                        "display_name": "IFRS Tools",
+                        "documentation": "Tools for IFRS synthesis",
+                        "template": {
+                            "tool_type": {
+                                "type": "str",
+                                "required": true,
+                                "value": "synthesis"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "id": "ifrs_agent",
+                "type": "IFRSAgent",
+                "position": {
+                    "x": 700,
+                    "y": 200
+                },
+                "data": {
+                    "node": {
+                        "base_classes": ["CustomComponent"],
+                        "description": "IFRS analysis agent",
+                        "display_name": "IFRS Agent",
+                        "documentation": "Agent for orchestrating IFRS analysis",
+                        "template": {
+                            "tools": {
+                                "type": "list",
+                                "required": true
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "edges": [
+            {
+                "source": "ifrs_tools_analysis",
+                "sourceHandle": "output",
+                "target": "ifrs_agent",
+                "targetHandle": "tools",
+                "id": "edge1"
+            },
+            {
+                "source": "ifrs_tools_synthesis",
+                "sourceHandle": "output",
+                "target": "ifrs_agent",
+                "targetHandle": "tools",
+                "id": "edge2"
+            },
+            {
+                "source": "ifrs_analysis",
+                "sourceHandle": "output",
+                "target": "ifrs_agent",
+                "targetHandle": "input",
+                "id": "edge3"
+            }
+        ]
+    }
+}

@@ -1,0 +1,17 @@
+REVENUE RECOGNITION
+
+The company recognizes revenue from healthcare services when the service is provided to the customer. For long-term care contracts, revenue is recognized over time as services are delivered. Total revenue for the year was €245.3 million (2022: €234.1 million).
+
+Contract assets related to unbilled services amount to €12.4 million and contract liabilities for advance payments are €3.2 million.
+
+LEASES AND PROPERTY
+
+The company has entered into various lease agreements for medical facilities and equipment. Right-of-use assets total €78.5 million, with corresponding lease liabilities of €82.1 million. The weighted average incremental borrowing rate applied was 4.2%.
+
+Short-term leases and leases of low-value assets are expensed as incurred, totaling €1.3 million for the year.
+
+FINANCIAL INSTRUMENTS
+
+Financial assets are classified and measured at amortized cost, fair value through other comprehensive income (FVOCI), or fair value through profit or loss (FVTPL). Trade receivables of €34.2 million are held within a business model to collect contractual cash flows.
+
+The company applies the expected credit loss model for impairment of financial assets. Loss allowances of €2.1 million have been recognized against trade receivables.
