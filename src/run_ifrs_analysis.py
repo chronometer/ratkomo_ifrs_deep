@@ -31,12 +31,13 @@ async def main():
             logger.error("OPENROUTER_API_KEY environment variable is required")
             sys.exit(1)
             
-        # Initialize orchestrator
+        # Initialize orchestrator with Gemini model
         orchestrator = IFRSOrchestrator(
-            num_workers=3,
-            min_segment_size=2000,  # Increased for better context
-            max_segment_size=int(os.getenv("LLM_MAX_TOKENS", "8000")),  # Use max tokens from env
-            batch_size=3
+            num_workers=1,  # Single worker for stability
+            model_name="google/gemini-2.0-flash-001",  # Use Gemini model
+            min_segment_size=12000,  # Large segments to reduce total count
+            max_segment_size=24000,  # Increased max size
+            batch_size=1  # Process one at a time for reliability
         )
     
         # Analyze document

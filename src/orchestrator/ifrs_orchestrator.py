@@ -148,69 +148,53 @@ class IFRSOrchestrator:
         return 'general', 8
     
     def segment_document(self, content: str) -> List[DocumentSegment]:
-        """Enhanced document segmentation with unique IDs and improved content grouping"""
+        """Enhanced document segmentation with improved efficiency"""
         segments = []
+        
+        # Split content into paragraphs
+        paragraphs = content.split('\n\n')
         current_segment = []
         current_size = 0
-        current_type = None
-        current_priority = 8  # Default to lowest priority
+        current_type = 'general'
         
-        # Split content into lines and group by sections
-        lines = content.split('\n')
-        section_starts = []
-        
-        # First pass: identify section boundaries
-        for i, line in enumerate(lines):
-            if line.isupper() and len(line.strip()) < 100:
-                segment_type, priority = self._detect_segment_type_and_priority(line)
-                section_starts.append((i, segment_type, priority))
-        
-        # Add end marker
-        section_starts.append((len(lines), 'end', 8))
-        
-        # Second pass: create segments based on sections
-        for i in range(len(section_starts) - 1):
-            start_idx, segment_type, priority = section_starts[i]
-            end_idx = section_starts[i + 1][0]
-            
-            # Get section content
-            section_lines = lines[start_idx:end_idx]
-            section_content = '\n'.join(section_lines)
-            
-            # Split large sections into smaller segments
-            if len(section_content) > self.max_segment_size:
-                # Split while preserving paragraph boundaries
-                current_segment = []
-                current_size = 0
+        for para in paragraphs:
+            # Skip empty paragraphs
+            if not para.strip():
+                continue
                 
-                for line in section_lines:
-                    current_segment.append(line)
-                    current_size += len(line) + 1  # +1 for newline
-                    
-                    # Create new segment at paragraph boundary if size exceeds limit
-                    if current_size >= self.max_segment_size and (not line.strip() or line.strip().endswith('.')):
-                        segments.append(DocumentSegment(
-                            content='\n'.join(current_segment),
-                            segment_type=segment_type,
-                            segment_id=str(uuid.uuid4())
-                        ))
-                        current_segment = []
-                        current_size = 0
+            # Detect segment type from paragraph
+            if para.isupper() and len(para.strip()) < 100:
+                segment_type, _ = self._detect_segment_type_and_priority(para)
+                current_type = segment_type
                 
-                # Add remaining lines as final segment
-                if current_segment:
+            para_size = len(para)
+            
+            # If adding this paragraph would exceed max_segment_size, create new segment
+            if current_size + para_size > self.max_segment_size and current_size >= self.min_segment_size:
+                if current_segment:  # Only create segment if we have content
                     segments.append(DocumentSegment(
-                        content='\n'.join(current_segment),
-                        segment_type=segment_type,
+                        content='\n\n'.join(current_segment),
+                        segment_type=current_type,
                         segment_id=str(uuid.uuid4())
                     ))
-            else:
-                # Add entire section as one segment if small enough
-                segments.append(DocumentSegment(
-                    content=section_content,
-                    segment_type=segment_type,
-                    segment_id=str(uuid.uuid4())
-                ))
+                    current_segment = []
+                    current_size = 0
+            
+            current_segment.append(para)
+            current_size += para_size + 2  # +2 for paragraph separator
+        
+        # Add final segment if there's content
+        if current_segment:
+            segments.append(DocumentSegment(
+                content='\n\n'.join(current_segment),
+                segment_type=current_type,
+                segment_id=str(uuid.uuid4())
+            ))
+        
+        logger.info(f"Split document into {len(segments)} segments")
+        return segments
+
+
         
         logger.info(f"Split document into {len(segments)} segments")
         return segments
@@ -259,33 +243,67 @@ class IFRSOrchestrator:
                 "non_compliant_segments": sum(1 for a in all_analyses if a.compliance_status == "non_compliant")
             }
             
-            # Synthesize final report
-            result = await self.manager.run(
-                f"""Generate a final IFRS compliance report based on the following analyses:
-
-                Document: {document_path}
-                Total Segments: {len(segments)}
-                
-                Statistics:
-                - Total Standards Referenced: {stats['total_standards']}
-                - Compliant Segments: {stats['compliant_segments']}
-                - Non-compliant Segments: {stats['non_compliant_segments']}
-                
-                Segment Analyses:
-                {chr(10).join(f'Segment {i+1}: {a.dict()}' for i, a in enumerate(all_analyses))}
-                
-                Provide your report in a structured format that includes:
-                - Overall compliance status (compliant/non_compliant/partially_compliant)
-                - Key findings
-                - Standards analysis with compliance levels
-                - Risk areas
-                - Recommendations
-                - Confidence score (0.0 to 1.0)
-                """
-            )
+            # Synthesize final report with retries
+            max_retries = 3
+            retry_count = 0
+            response = None
             
-            # Get response text
-            response = result.data
+            while retry_count < max_retries:
+                try:
+                    result = await self.manager.run(
+                        f"""Generate a final IFRS compliance report based on the following analyses:
+
+                        Document: {document_path}
+                        Total Segments: {len(segments)}
+                        
+                        Statistics:
+                        - Total Standards Referenced: {stats['total_standards']}
+                        - Compliant Segments: {stats['compliant_segments']}
+                        - Non-compliant Segments: {stats['non_compliant_segments']}
+                        
+                        Segment Analyses:
+                        {chr(10).join(f'Segment {i+1}: {a.dict()}' for i, a in enumerate(all_analyses))}
+                        
+                        Provide your report in a structured format that includes:
+                        - Overall compliance status (compliant/non_compliant/partially_compliant)
+                        - Key findings
+                        - Standards analysis with compliance levels
+                        - Risk areas
+                        - Recommendations
+                        - Confidence score (0.0 to 1.0)
+                        """
+                    )
+                    response = result.data
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    logger.warning(f"Synthesis attempt {retry_count} failed: {e}")
+                    if retry_count == max_retries:
+                        logger.error("Final synthesis failed after all retries")
+                        # Create a minimal valid report
+                        response = """
+                        Overall Compliance: partially_compliant
+                        - Analysis completed with technical issues
+                        
+                        Key Findings:
+                        - Analysis completed with reduced confidence due to technical issues
+                        - Manual review recommended
+                        
+                        Standards Analysis:
+                        - Review of individual segment analyses recommended
+                        
+                        Risk Areas:
+                        - Technical issues during final synthesis
+                        - Some insights may be incomplete
+                        
+                        Recommendations:
+                        - Manual review of segment analyses
+                        - Re-run analysis if issues persist
+                        
+                        Confidence: 0.3
+                        """
+                    else:
+                        await asyncio.sleep(2)  # Longer wait for synthesis retry
             
             # Parse response into FinalReport model
             final_report = FinalReport(
@@ -367,27 +385,38 @@ class IFRSOrchestrator:
             if run_context:
                 context.update(run_context)
                 
-            # Run analysis with response validation
-            result = await agent.run(
-                f"""Analyze this document segment for IFRS compliance:
-                
-                Content:
-                {segment.content}
-                
-                Context:
-                - Segment ID: {context['segment_id']}
-                - Type: {context['segment_type']}
-                
-                Provide your analysis in a structured format that includes:
-                - Standards identified and their compliance status
-                - Key findings and evidence
-                - Issues and recommendations
-                - Confidence score (0.0 to 1.0)
-                """
-            )
+            # Run analysis with response validation and retries
+            max_retries = 3
+            retry_count = 0
             
-            # Get response text
-            response = result.data
+            while retry_count < max_retries:
+                try:
+                    result = await agent.run(
+                        f"""Analyze this document segment for IFRS compliance:
+                        
+                        Content:
+                        {segment.content}
+                        
+                        Context:
+                        - Segment ID: {context['segment_id']}
+                        - Type: {context['segment_type']}
+                        
+                        Provide your analysis in a structured format that includes:
+                        - Standards identified and their compliance status
+                        - Key findings and evidence
+                        - Issues and recommendations
+                        - Confidence score (0.0 to 1.0)
+                        """
+                    )
+                    response = result.data
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count == max_retries:
+                        logger.warning(f"Failed to analyze segment after {max_retries} retries: {e}")
+                        response = "Analysis failed due to API error"
+                    else:
+                        await asyncio.sleep(1)  # Wait before retry
             
             # Parse response into ComplianceAnalysis model
             analysis = ComplianceAnalysis(
